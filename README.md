@@ -1,7 +1,8 @@
 # FoodPicker - Aplikasi Pemilih Tempat Makan Acak
 
 <div align="center">
-  <img src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" alt="FoodPicker Banner" width="800"/>
+  <img width="1900" height="806" alt="image" src="https://github.com/user-attachments/assets/437b6024-b7bd-493a-b8db-cf549b9dedc4" />
+  <img width="1898" height="808" alt="image" src="https://github.com/user-attachments/assets/0fa4c0b0-94de-40cd-9757-eee60afed47d" />
 </div>
 
 Aplikasi web berbasis React yang membantu Anda memilih tempat makan secara acak di sekitar lokasi Anda. Menggunakan data OpenStreetMap untuk menemukan berbagai jenis tempat makan seperti restoran, kafe, dan fast food.
