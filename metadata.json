@@ -1,0 +1,7 @@
+{
+  "name": "FoodPicker (No AI)",
+  "description": "Aplikasi pencari tempat makan random menggunakan data OpenStreetMap tanpa AI.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
