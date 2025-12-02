@@ -7,20 +7,67 @@ interface PlaceCardProps {
 }
 
 const PlaceCard: React.FC<PlaceCardProps> = ({ place, onReset }) => {
+  const getCurrentStatusColor = () => {
+    if (place.isOpen === undefined) return 'bg-gray-100 text-gray-600'; // No data
+    return place.isOpen ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700';
+  };
+
+  const getStatusText = () => {
+    if (place.isOpen === undefined) return 'Jam buka tidak diketahui';
+    return place.isOpen ? '🟢 Buka Sekarang' : '🔴 Tutup';
+  };
+
+  const getTodayHours = () => {
+    if (!place.openingHours) return null;
+
+    const now = new Date();
+    const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+    const currentDay = dayNames[now.getDay()];
+
+    const todayHours = place.openingHours[currentDay];
+    if (!todayHours) return null;
+
+    const dayMap: { [key: string]: string } = {
+      'Su': 'Minggu',
+      'Mo': 'Senin',
+      'Tu': 'Selasa',
+      'We': 'Rabu',
+      'Th': 'Kamis',
+      'Fr': 'Jumat',
+      'Sa': 'Sabtu'
+    };
+
+    return `${dayMap[currentDay]}: ${todayHours}`;
+  };
+
   return (
     <div className="bg-white p-6 rounded-3xl shadow-xl border border-orange-100 flex flex-col items-center text-center animate-fade-in-up">
       <div className="w-16 h-16 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mb-4 text-3xl">
         🍽️
       </div>
       <h2 className="text-2xl font-bold text-gray-800 mb-1">{place.name}</h2>
-      
+
+      {/* Status Buka/Tutup */}
+      <div className={`px-3 py-1 rounded-full text-xs font-medium mb-3 ${getCurrentStatusColor()}`}>
+        {getStatusText()}
+      </div>
+
       {place.address && (
         <p className="text-sm text-gray-600 mb-2 px-2 leading-tight">
           {place.address}
         </p>
       )}
 
-      <p className="text-gray-400 text-xs mb-6">Pilihan yang bagus! Selamat makan.</p>
+      {/* Jam Buka Hari Ini */}
+      {getTodayHours() && (
+        <p className="text-xs text-gray-500 mb-2">
+          🕐 {getTodayHours()}
+        </p>
+      )}
+
+      <p className="text-gray-400 text-xs mb-6">
+        {place.isOpen !== false ? 'Pilihan yang bagus! Selamat makan.' : 'Tempat ini sedang tutup, tapi bisa dicoba lain waktu.'}
+      </p>
       
       <div className="flex gap-3 w-full">
         <a 

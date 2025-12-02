@@ -15,6 +15,7 @@ const App: React.FC = () => {
   const [rouletteName, setRouletteName] = useState<string>('???');
   const [category, setCategory] = useState<string>('all');
   const [radius, setRadius] = useState<number>(1000); // Default 1km
+  const [onlyOpen, setOnlyOpen] = useState<boolean>(false); // Filter untuk tempat yang buka saja
   const [isAddressLoading, setIsAddressLoading] = useState<boolean>(false);
 
   // Helper to update address text when coords change
@@ -42,7 +43,7 @@ const App: React.FC = () => {
         };
         setCoords(newCoords);
         updateAddress(newCoords);
-        handleSearchPlaces(newCoords, category, radius);
+        handleSearchPlaces(newCoords, category, radius, onlyOpen);
       },
       (error) => {
         console.error(error);
@@ -82,15 +83,18 @@ const App: React.FC = () => {
   }, [updateAddress]);
 
   // Handle Searching Places via OSM Service
-  const handleSearchPlaces = async (coordinates: Coordinates, selectedCategory: string, selectedRadius: number) => {
+  const handleSearchPlaces = async (coordinates: Coordinates, selectedCategory: string, selectedRadius: number, onlyOpenFilter: boolean = false) => {
     setAppState(AppState.SEARCHING);
     try {
-      const results = await fetchNearbyPlaces(coordinates, selectedCategory, selectedRadius);
+      const results = await fetchNearbyPlaces(coordinates, selectedCategory, selectedRadius, onlyOpenFilter);
       if (results.length > 0) {
         setPlaces(results);
         setAppState(AppState.READY);
       } else {
-        setErrorMsg(`Tidak ditemukan tempat makan dalam radius ${selectedRadius}m. Coba perbesar jarak.`);
+        const message = onlyOpenFilter
+          ? `Tidak ada tempat makan yang buka dalam radius ${selectedRadius}m. Coba nonaktifkan filter "Buka Sekarang" atau perbesar jarak.`
+          : `Tidak ditemukan tempat makan dalam radius ${selectedRadius}m. Coba perbesar jarak.`;
+        setErrorMsg(message);
         setAppState(AppState.ERROR);
       }
     } catch (err: any) {
@@ -233,7 +237,7 @@ const App: React.FC = () => {
                             onClick={() => {
                                 setCategory(cat.id);
                                 if (coords && (appState === AppState.READY || appState === AppState.IDLE)) {
-                                    handleSearchPlaces(coords, cat.id, radius);
+                                    handleSearchPlaces(coords, cat.id, radius, onlyOpen);
                                 }
                             }}
                             className={`px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-colors flex items-center gap-1.5 ${
@@ -264,6 +268,32 @@ const App: React.FC = () => {
                         {radius >= 1000 ? `${radius/1000}km` : `${radius}m`}
                     </span>
                 </div>
+
+                {/* Opening Hours Filter */}
+                <div className="bg-white px-4 py-3 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                        <span className="text-xs font-bold text-gray-500 uppercase">Filter</span>
+                        <span className="text-xs text-gray-600">Hanya yang buka</span>
+                    </div>
+                    <button
+                        onClick={() => {
+                            const newOnlyOpen = !onlyOpen;
+                            setOnlyOpen(newOnlyOpen);
+                            if (coords && (appState === AppState.READY || appState === AppState.IDLE)) {
+                                handleSearchPlaces(coords, category, radius, newOnlyOpen);
+                            }
+                        }}
+                        className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                            onlyOpen ? 'bg-green-600' : 'bg-gray-300'
+                        }`}
+                    >
+                        <span
+                            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                onlyOpen ? 'translate-x-6' : 'translate-x-1'
+                            }`}
+                        />
+                    </button>
+                </div>
             </div>
 
             {/* Initial State */}
@@ -282,7 +312,7 @@ const App: React.FC = () => {
             {coords && (appState === AppState.IDLE || appState === AppState.ERROR) && (
                  <div className="animate-fade-in">
                     <button 
-                        onClick={() => handleSearchPlaces(coords, category, radius)}
+                        onClick={() => handleSearchPlaces(coords, category, radius, onlyOpen)}
                         className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg transition-colors flex justify-center items-center gap-2"
                     >
                         🔍 Cari {radius >= 1000 ? `${radius/1000}km` : `${radius}m`} Sekitar

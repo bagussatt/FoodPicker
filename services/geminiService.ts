@@ -1,11 +1,88 @@
-import { Coordinates, Place } from "../types";
+import { Coordinates, Place, OpeningHours } from "../types";
 
 // Using OpenStreetMap Overpass API for Places (Free, High Limits)
 const OVERPASS_API_URL = "https://overpass-api.de/api/interpreter";
 // Using OpenStreetMap Nominatim API for Geocoding (Free, No Key)
 const NOMINATIM_API_URL = "https://nominatim.openstreetmap.org";
 
-export const fetchNearbyPlaces = async (coords: Coordinates, category: string = 'all', radius: number = 1000): Promise<Place[]> => {
+// Parse OSM opening hours format
+const parseOpeningHours = (osmHours: string): OpeningHours | null => {
+  if (!osmHours) return null;
+
+  const hours: OpeningHours = {};
+
+  // Handle common OSM opening_hours formats
+  // Example: "Mo-Fr 08:00-22:00; Sa 09:00-23:00; Su 10:00-20:00"
+  try {
+    const dayPatterns = osmHours.split(';').map(s => s.trim());
+
+    dayPatterns.forEach(pattern => {
+      const match = pattern.match(/^(.+?)\s+(\d{2}:\d{2})-(\d{2}:\d{2})$/);
+      if (match) {
+        const days = match[1];
+        const openTime = match[2];
+        const closeTime = match[3];
+
+        // Expand day ranges
+        if (days.includes('-')) {
+          const [startDay, endDay] = days.split('-');
+          const dayMap: { [key: string]: number } = {
+            'Mo': 0, 'Tu': 1, 'We': 2, 'Th': 3, 'Fr': 4, 'Sa': 5, 'Su': 6
+          };
+
+          const startIndex = dayMap[startDay] || 0;
+          const endIndex = dayMap[endDay] || 6;
+
+          for (let i = startIndex; i <= endIndex; i++) {
+            const dayNames = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
+            hours[dayNames[i]] = `${openTime}-${closeTime}`;
+          }
+        } else {
+          hours[days] = `${openTime}-${closeTime}`;
+        }
+      }
+    });
+
+    return Object.keys(hours).length > 0 ? hours : null;
+  } catch (error) {
+    console.warn('Failed to parse opening hours:', osmHours, error);
+    return null;
+  }
+};
+
+// Check if place is currently open
+const isPlaceOpen = (openingHours: OpeningHours | null): boolean => {
+  if (!openingHours) return true; // Assume open if no data
+
+  const now = new Date();
+  const dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+  const currentDay = dayNames[now.getDay()];
+  const currentTime = now.getHours() * 60 + now.getMinutes();
+
+  const todayHours = openingHours[currentDay];
+  if (!todayHours) return false;
+
+  const [openTime, closeTime] = todayHours.split('-');
+  const [openHour, openMin] = openTime.split(':').map(Number);
+  const [closeHour, closeMin] = closeTime.split(':').map(Number);
+
+  const openMinutes = openHour * 60 + openMin;
+  const closeMinutes = closeHour * 60 + closeMin;
+
+  // Handle cases where closing time is after midnight (e.g., "22:00-02:00")
+  if (closeMinutes < openMinutes) {
+    return currentTime >= openMinutes || currentTime < closeMinutes;
+  }
+
+  return currentTime >= openMinutes && currentTime < closeMinutes;
+};
+
+export const fetchNearbyPlaces = async (
+  coords: Coordinates,
+  category: string = 'all',
+  radius: number = 1000,
+  onlyOpen: boolean = false
+): Promise<Place[]> => {
   try {
     // Construct amenity tags based on category
     // Added 'street_vendor' and 'marketplace' for better accuracy in Asian contexts (Kaki lima/Pasar)
@@ -31,6 +108,7 @@ export const fetchNearbyPlaces = async (coords: Coordinates, category: string = 
 
     // Overpass QL Query
     // Increased timeout to 90 seconds to avoid Gateway Timeouts on large areas
+    // Include opening_hours in the query
     const query = `
       [out:json][timeout:90];
       (
@@ -74,19 +152,31 @@ export const fetchNearbyPlaces = async (coords: Coordinates, category: string = 
         const lat = el.lat || el.center?.lat || coords.latitude;
         const lon = el.lon || el.center?.lon || coords.longitude;
 
+        // Parse opening hours
+        const openingHours = parseOpeningHours(el.tags['opening_hours'] || '');
+        const isOpen = isPlaceOpen(openingHours);
+
         return {
           id: String(el.id),
           name: el.tags.name,
-          uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(el.tags.name)}&query_place_id=${el.lat},${el.lon}`, // Improved maps link
-          address: el.tags['addr:street'] 
-            ? `${el.tags['addr:street']} ${el.tags['addr:housenumber'] || ''}` 
+          uri: `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(el.tags.name)}&query_place_id=${el.lat},${el.lon}`,
+          address: el.tags['addr:street']
+            ? `${el.tags['addr:street']} ${el.tags['addr:housenumber'] || ''}`
             : (el.tags['addr:city'] || el.tags['addr:village'] || ''),
-          rating: el.tags['cuisine'] ? `🍽️ ${el.tags['cuisine'].replace(/_/g, ' ')}` : undefined // Use cuisine as "rating" or type info
+          rating: el.tags['cuisine'] ? `🍽️ ${el.tags['cuisine'].replace(/_/g, ' ')}` : undefined,
+          openingHours: openingHours,
+          isOpen: isOpen
         };
       });
 
+    // Filter by opening hours if requested
+    let filteredPlaces = places;
+    if (onlyOpen) {
+      filteredPlaces = places.filter(place => place.isOpen !== false);
+    }
+
     // Remove duplicates based on name
-    const uniquePlaces = places.filter((place, index, self) =>
+    const uniquePlaces = filteredPlaces.filter((place, index, self) =>
       index === self.findIndex((t) => (
         t.name === place.name
       ))

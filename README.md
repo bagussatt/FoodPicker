@@ -17,6 +17,7 @@ Aplikasi web berbasis React yang membantu Anda memilih tempat makan secara acak 
   - Kafe
   - Fast Food
 - **📏 Radius Kustom**: Atur jarak pencarian dari 500m hingga 5km
+- **🕐 Filter Jam Buka**: Hanya tampilkan tempat yang buka saat ini
 - **🎲 Pemilihan Acak**: Animasi roulette yang menarik untuk memilih tempat makan
 - **📱 Responsive Design**: Tampilan optimal di berbagai ukuran layar
 - **🌐 Gratis**: Menggunakan OpenStreetMap API yang gratis dan terbuka
@@ -126,6 +127,13 @@ randomFood/
 - Animasi roulette dengan 30 iterasi
 - Pemilihan acak murni dari hasil pencarian
 - Tampilan hasil dengan detail tempat dan link Google Maps
+
+### 4. Filter Jam Buka
+- Data jam buka diambil dari OpenStreetMap
+- Parsing format OSM opening_hours (contoh: "Mo-Fr 08:00-22:00")
+- Deteksi otomatis status buka/tutup berdasarkan waktu real-time
+- Toggle filter untuk hanya menampilkan tempat yang buka
+- Tampilan jam buka hari ini di hasil akhir
 
 ## 🌐 API yang Digunakan
 
